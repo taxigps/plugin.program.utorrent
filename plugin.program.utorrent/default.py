@@ -1,5 +1,9 @@
 import urllib, sys, os, re, time
 import xbmcaddon, xbmcplugin, xbmcgui, xbmc
+if sys.version_info < (2, 7):
+    import simplejson
+else:
+    import json as simplejson
 
 # Plugin constants
 __addonname__ = "uTorrent"
@@ -52,51 +56,45 @@ def updateList():
     token = getToken()
     url = baseurl + token + '&list=1'
     data = myClient.HttpCmd(url)
-    data = data.split('\n')
     torrentList = []
-    for line in data:
-        if '\"rssfeeds\"' in line:
-            xbmc.log( "%s::updateList - %s" % ( __addonname__, 'break with \"rssfeeds\"' ), xbmc.LOGDEBUG )
-            break
-        if len(line) > 80:
-            tor = re.findall('\"[^\"]*\"|[0-9\-]+', line)
-            xbmc.log( "%s::updateList - %d: %s" % ( __addonname__, len(torrentList), str(tor) ), xbmc.LOGDEBUG )
-            hashnum = tor[0][1:-1]
-            status = tor[1]
-            torname = tor[2]
-            sid = tor[22][1:-1]
-            complete = tor[4]
-            complete = int(complete)
-            complete = complete / 10.0
-            size = int(tor[3]) / (1024*1024)
-            if (size >= 1024.00):
-                size_str = str(round(size / 1024.00,2)) +"Gb"
-            else:
-                size_str = str(size) + "Mb"
-            up_rate = round(float(tor[8]) / (1024),2)
-            down_rate = round(float(tor[9]) / (1024),2)
-            remain = int(tor[10]) / 60
-            if (remain >=60):
-                remain_str = str(remain//60) + __language__(30006).encode('utf8') + str(remain%60) + __language__(30007).encode('utf8')
-            elif(remain == -1):
-                remain_str = __language__(30008).encode('utf8')
-            else:
-                remain_str = str(remain) + __language__(30007).encode('utf8')
-            tup = (hashnum, status, torname, complete, size_str, up_rate, down_rate,remain_str,sid)
-            torrentList.append(tup)
+    data = unicode(data, 'utf-8', errors='ignore')
+    json_response = simplejson.loads(data)
+    for torrent in json_response['torrents']:
+        xbmc.log( "%s::updateList - %d: %s" % ( __addonname__, len(torrentList), str(torrent) ), xbmc.LOGDEBUG )
+        hashnum = torrent[0].encode('utf-8')
+        status = torrent[1]
+        torname = torrent[2].encode('utf-8')
+        sid = torrent[22]
+        complete = torrent[4] / 10.0
+        size = torrent[3] / (1024*1024)
+        if (size >= 1024.00):
+            size_str = str(round(size / 1024.00,2)) + "Gb"
+        else:
+            size_str = str(size) + "Mb"
+        up_rate = round(torrent[8] / 1024, 2)
+        down_rate = round(torrent[9] / 1024, 2)
+        remain = torrent[10] / 60
+        if (remain >=60):
+            remain_str = str(remain//60) + __language__(30006).encode('utf8') + str(remain%60) + __language__(30007).encode('utf8')
+        elif(remain == -1):
+            remain_str = __language__(30008).encode('utf8')
+        else:
+            remain_str = str(remain) + __language__(30007).encode('utf8')
+        tup = (hashnum, status, torname, complete, size_str, up_rate, down_rate, remain_str, sid)
+        torrentList.append(tup)
     return torrentList
 
 def listTorrents():
     tupList = updateList()
     mode = 1
     for hashnum, bw, name, complete,size_str, up_rate, down_rate,remain_str,sid in tupList:
-        if int(bw) in (169,232,233):
+        if bw in (169,232,233):
             thumb = os.path.join(__icondir__,'pause.png')
-        elif int(bw) in (130,137,200,201):
+        elif bw in (130,137,200,201):
             thumb = os.path.join(__icondir__,'play.png')
-        elif int(bw) in (128,136):
+        elif bw in (128,136):
             thumb = os.path.join(__icondir__,'stop.png')
-        elif int(bw) == 200:
+        elif bw == 200:
             thumb = os.path.join(__icondir__,'queued.png')
         else:
             thumb = os.path.join(__icondir__,'unknown.png')
@@ -110,25 +108,16 @@ def getFiles(hash):
     token = getToken()
     url = baseurl + token + '&action=getfiles&hash='+hash
     data = myClient.HttpCmd(url)
-    data = data.split('\n')
     fileList = []
-    for line in data:
-       
-        if len(line) > 80:
-            tor = re.findall('\"[^\"]*\"|[0-9\-]+', line)
-            xbmc.log( "%s::updateList - %d: %s" % ( __addonname__, len(fileList), str(tor) ), xbmc.LOGDEBUG )
-            torname = tor[0][1:-1]
-           
-            tup = (torname)
-            fileList.append(torname)
+    data = unicode(data, 'utf-8', errors='ignore')
+    json_response = simplejson.loads(data)
+    for file in json_response['files'][1]:
+        xbmc.log( "%s::getFiles - %d: %s" % ( __addonname__, len(fileList), str(file) ), xbmc.LOGDEBUG )
+        fileList.append(file[0].encode('utf-8'))
     return fileList
-	
-	
-	
+
 def performAction(selection,sid):
     dialog = xbmcgui.Dialog()
-	
-	
     sel = dialog.select(__language__(32001),[__language__(32002),__language__(32003),__language__(32004),__language__(32005),__language__(32006),__language__(32007),__language__(32008),__language__(32201)])
     token = getToken()
     if sel == 0:
@@ -306,4 +295,3 @@ elif mode == 1005:
 elif 0 < mode < 1000:
     xbmc.log( "%s::main - hashNum: %s" % ( __addonname__, hashNum ), xbmc.LOGDEBUG )
     performAction(hashNum,sid)
-
