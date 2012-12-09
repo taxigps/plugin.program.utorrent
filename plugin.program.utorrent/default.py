@@ -99,7 +99,12 @@ def listTorrents():
         else:
             thumb = os.path.join(__icondir__,'unknown.png')
         url = baseurl
-        addDir(name+" "+__language__(30001).encode('utf8')+str(complete)+"% "+__language__(30002).encode('utf8')+size_str+" "+__language__(30003).encode('utf8')+ str(down_rate)+"Kb/s "+__language__(30004).encode('utf8')+str(up_rate)+"Kb/s "+__language__(30005).encode('utf8')+remain_str,url,mode,thumb,hashnum,sid)
+        addDir(name+" [COLOR FFFF0000]"
+                +__language__(30001).encode('utf8')+"[/COLOR]"+str(complete)+"% [COLOR FF00FF00]"
+                +__language__(30002).encode('utf8')+"[/COLOR]"+size_str+" [COLOR FFFFFF00]"
+                +__language__(30003).encode('utf8')+"[/COLOR]"+str(down_rate)+"Kb/s [COLOR FF00FFFF]"
+                +__language__(30004).encode('utf8')+"[/COLOR]"+str(up_rate)+"Kb/s [COLOR FFFF00FF]"
+                +__language__(30005).encode('utf8')+"[/COLOR]"+remain_str,url,mode,thumb,hashnum,sid)
         mode = mode + 1
     xbmcplugin.endOfDirectory(int(sys.argv[1]),cacheToDisc=False)
 
