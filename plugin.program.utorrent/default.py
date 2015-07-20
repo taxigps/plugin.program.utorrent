@@ -1,9 +1,6 @@
 import urllib, sys, os, re, time
 import xbmcaddon, xbmcplugin, xbmcgui, xbmc
-if sys.version_info < (2, 7):
-    import simplejson
-else:
-    import json as simplejson
+import simplejson
 
 # Plugin constants
 __addonname__ = "uTorrent"
