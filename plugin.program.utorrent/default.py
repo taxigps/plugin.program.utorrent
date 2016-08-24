@@ -21,7 +21,9 @@ UT_USER = __addon__.getSetting('usr')
 UT_PASSWORD = __addon__.getSetting('pwd')
 UT_TDIR = xbmc.translatePath( __addon__.getSetting('tdir') )
 UT_HTTPS = __addon__.getSetting('use_https')
-UT_PATH = __addon__.getSetting('path')
+UT_PATH = '/' + __addon__.getSetting('path').strip('/') + '/'
+if UT_PATH != __addon__.getSetting('path'):
+    __addon__.setSetting('path', UT_PATH)
 PROTO = 'https://' if UT_HTTPS else 'http://'
 baseurl = PROTO+UT_ADDRESS+':'+UT_PORT+UT_PATH+'?token='
 
