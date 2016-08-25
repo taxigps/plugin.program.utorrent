@@ -11,7 +11,9 @@
 	<string id="30008">¡Þm</string>
 	<!-- Settings labels -->
 	<string id="30100">IP Address:</string>
+	<string id="30105">Use HTTPS:</string>
 	<string id="30101">Port:</string>
+	<string id="30106">Path:</string>
 	<string id="30102">User:</string>
 	<string id="30103">Password:</string>
 	<string id="30104">Torrent Path:</string>
