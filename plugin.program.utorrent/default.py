@@ -1,4 +1,4 @@
-import urllib, sys, os, re, time
+import sys, os, re, time
 import xbmcaddon, xbmcplugin, xbmcgui, xbmc
 import simplejson
 
@@ -24,8 +24,6 @@ UT_HTTPS = __addon__.getSetting('use_https')
 UT_PATH = '/' + __addon__.getSetting('path').strip('/') + '/'
 if UT_PATH != __addon__.getSetting('path'):
     __addon__.setSetting('path', UT_PATH)
-PROTO = 'https://' if UT_HTTPS else 'http://'
-baseurl = PROTO+UT_ADDRESS+':'+UT_PORT+UT_PATH+'?token='
 
 from utilities import *
 
@@ -37,13 +35,12 @@ params = {
     'path': UT_PATH,
     'https': UT_HTTPS
 }
-myClient = Client(**params)
+baseurl = Url(**params)
+myClient = Client(baseurl)
 
 def getToken():
-    tokenUrl = PROTO+UT_ADDRESS+':'+UT_PORT+UT_PATH+'token.html'
-
     try:
-        data = myClient.HttpCmd(tokenUrl)
+        data = myClient.CmdGetToken()
     except:
         dialog = xbmcgui.Dialog()
         ret = dialog.yesno(__addonname__ + ' ' + __language__(32100).encode('utf8'), __language__(32101).encode('utf8'), __language__(32102).encode('utf8'))
@@ -54,12 +51,12 @@ def getToken():
     match = re.compile("<div id='token' style='display:none;'>(.+?)</div>").findall(data)
     token = match[0]
 
+    baseurl.token = token
     return token
 
 def updateList():
     token = getToken()
-    url = baseurl + token + '&list=1'
-    data = myClient.HttpCmd(url)
+    data = myClient.HttpCmd(baseurl.getBaseUrl(True) + '&list=1')
     torrentList = []
     data = unicode(data, 'utf-8', errors='ignore')
     json_response = simplejson.loads(data)
@@ -107,7 +104,7 @@ def listTorrents():
             thumb = os.path.join(__icondir__,'queued.png')
         else:
             thumb = os.path.join(__icondir__,'unknown.png')
-        url = baseurl
+        url = baseurl.getBaseUrl()
         addDir(name+" [COLOR FFFF0000]"
                 +__language__(30001).encode('utf8')+"[/COLOR]"+str(complete)+"% [COLOR FF00FF00]"
                 +__language__(30002).encode('utf8')+"[/COLOR]"+size_str+" [COLOR FFFFFF00]"
@@ -120,7 +117,7 @@ def listTorrents():
 
 def getFiles(hash):
     token = getToken()
-    url = baseurl + token + '&action=getfiles&hash='+hash
+    url = baseurl.getActionUrl('getfiles', hash)
     data = myClient.HttpCmd(url)
     fileList = []
     data = unicode(data, 'utf-8', errors='ignore')
@@ -139,33 +136,32 @@ def performAction(selection,sid):
         sel = dialog.select(__language__(32001),[__language__(32002),__language__(32003),__language__(32004),__language__(32005),__language__(32006),__language__(32007),__language__(32008),__language__(32201)])
     token = getToken()
     if sel == 0:
-        myClient.HttpCmd(baseurl+token+'&action=pause&hash='+selection)
+        myClient.HttpCmd(baseurl.getActionUrl('pause', selection))
     if sel == 1:
-        myClient.HttpCmd(baseurl+token+'&action=unpause&hash='+selection)
+        myClient.HttpCmd(baseurl.getActionUrl('unpause', selection))
     if sel == 2:
-        myClient.HttpCmd(baseurl+token+'&action=start&hash='+selection)
+        myClient.HttpCmd(baseurl.getActionUrl('start', selection))
     if sel == 3:
-        myClient.HttpCmd(baseurl+token+'&action=stop&hash='+selection)
+        myClient.HttpCmd(baseurl.getActionUrl('stop', selection))
     if sel == 4:
-        myClient.HttpCmd(baseurl+token+'&action=forcestart&hash='+selection)
+        myClient.HttpCmd(baseurl.getActionUrl('forcestart', selection))
     if sel == 5:
-        myClient.HttpCmd(baseurl+token+'&action=remove&hash='+selection)
+        myClient.HttpCmd(baseurl.getActionUrl('remove', selection))
     if sel == 6:
-        myClient.HttpCmd(baseurl+token+'&action=removedata&hash='+selection)
+        myClient.HttpCmd(baseurl.getActionUrl('removedata', selection))
     if sel == 7:
         files = getFiles(selection)
         if len(files) > 1: 
-             xbmc.Player().play(PROTO+UT_USER+':'+UT_PASSWORD+'@'+UT_ADDRESS+':'+UT_PORT+'/proxy?sid='+sid+'&file='+str(dialog.select(__language__(32202),files)))
+             xbmc.Player().play(baseurl.getProxyUrl(sid, str(dialog.select(__language__(32202), files))))
         else:
-             xbmc.Player().play(PROTO+UT_USER+':'+UT_PASSWORD+'@'+UT_ADDRESS+':'+UT_PORT+'/proxy?sid='+sid+'&file=0')
+             xbmc.Player().play(baseurl.getProxyUrl(sid, '0'))
     xbmc.executebuiltin('Container.Refresh')
 
 def pauseAll():
     tupList = updateList()
     for hashnum, bw, name, complete,size_str, up_rate, down_rate,remain_str,sid in tupList:
         token = getToken()
-        url = baseurl + token + '&action=pause&hash='+hashnum
-        myClient.HttpCmd(url)
+        myClient.HttpCmd(baseurl.getActionUrl('pause', hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
 
@@ -173,8 +169,7 @@ def resumeAll():
     tupList = updateList()
     for hashnum, bw, name, complete,size_str, up_rate, down_rate,remain_str,sid in tupList:
         token = getToken()
-        url = baseurl + token + '&action=unpause&hash='+hashnum
-        myClient.HttpCmd(url)
+        myClient.HttpCmd(baseurl.getActionUrl('unpause', hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
 
@@ -182,8 +177,7 @@ def stopAll():
     tupList = updateList()
     for hashnum, bw, name, complete,size_str, up_rate, down_rate,remain_str,sid in tupList:
         token = getToken()
-        url = baseurl + token + '&action=stop&hash='+hashnum
-        myClient.HttpCmd(url)
+        myClient.HttpCmd(baseurl.getActionUrl('stop', hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
 
@@ -191,8 +185,7 @@ def startAll():
     tupList = updateList()
     for hashnum, bw, name, complete,size_str, up_rate, down_rate,remain_str,sid in tupList:
         token = getToken()
-        url = baseurl + token + '&action=start&hash='+hashnum
-        myClient.HttpCmd(url)
+        myClient.HttpCmd(baseurl.getActionUrl('start', hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
 
@@ -208,7 +201,7 @@ def limitSpeeds():
     if opt != '':
         token = getToken()
         #url = baseurl + token + '&action=setsetting&s=max_ul_rate&v='+upLimit+'&s=max_dl_rate&v='+downLimit
-        url = baseurl + token + '&action=setsetting' + opt
+        url = baseurl.getActionUrl('setsetting') + opt
         myClient.HttpCmd(url)
 
 def addFiles():
@@ -230,8 +223,7 @@ def addFiles():
 
             ## Now Action the command..?action=add-file
             token = getToken()
-            url = baseurl + token + '&action=add-file'
-            Response = myClient.HttpCmd(url, postdta=Postx, content=Contentx)
+            Response = myClient.HttpCmd(baseurl.getActionUrl('add-file'), postdta=Postx, content=Contentx)
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
 

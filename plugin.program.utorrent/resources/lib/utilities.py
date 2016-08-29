@@ -1,6 +1,7 @@
 import urllib, urllib2, cookielib, sys, os
 from base64 import b64encode
 import xbmc
+import urlparse
 
 __addonname__ = sys.modules[ "__main__" ].__addonname__
 __addon__     = sys.modules[ "__main__" ].__addon__
@@ -16,6 +17,71 @@ def _create_base_paths():
     if ( not os.path.isdir( BASE_DATA_PATH ) ):
         os.makedirs( BASE_DATA_PATH )
 _create_base_paths()
+
+class Url(object):
+    def __init__(self, address=None, port=8080, user=None, password=None, path='/gui/', https=False):
+        url = '{proto}://{username}:{password}@{hostname}:{port}/{path}/'.format(
+            proto='https' if https else 'http',
+            username=urllib.quote(user),
+            password=urllib.quote(password),
+            hostname=address,
+            port=port,
+            path=path.strip('/')
+        )
+        self.token = None
+        self.url = urlparse.urlparse(url)
+
+    def getBaseUrl(self, withToken=False):
+        query = ''
+        if withToken:
+            query = '?token=' + urllib.quote_plus(self.token)
+        return '{proto}://{hostname}:{port}/{path}/{query}'.format(
+            proto=self.url.scheme,
+            hostname=self.url.hostname,
+            port=self.url.port,
+            path=self.url.path.strip('/'),
+            query=query
+        )
+
+    def getActionUrl(self, action='', hash=''):
+        params = {
+            'token': self.token,
+            'action': action
+        }
+        if hash:
+            params['hash'] = hash
+
+        query = dict(urlparse.parse_qsl(self.url.query))
+        query.update(params)
+        query = urllib.urlencode(query)
+        if query:
+            query = '?' + query
+
+        return '{proto}://{hostname}:{port}/{path}/{query}'.format(
+            proto=self.url.scheme,
+            hostname=self.url.hostname,
+            port=self.url.port,
+            path=self.url.path.strip('/'),
+            query=query
+        )
+
+    def getProxyUrl(self, sid, f):
+        path = self.url.path.strip('/').split('/')
+        path.pop()
+        path = '/'.join(path)
+        query = urllib.urlencode({
+            'sid': sid,
+            'file': f
+        })
+        return '{proto}://{username}:{password}@{hostname}:{port}/{path}/proxy?{query}'.format(
+            proto=self.url.scheme,
+            username=urllib.quote(self.url.username),
+            password=urllib.quote(self.url.password),
+            hostname=self.url.hostname,
+            port=self.url.port,
+            path=path,
+            query=query
+        )
 
 def MultiPart(fields,files,ftype) :
     Boundary = '----------ThIs_Is_tHe_bouNdaRY_---$---'
@@ -51,28 +117,36 @@ def MultiPart(fields,files,ftype) :
     return content_type, post
 
 class Client(object):
-    def __init__(self, address='localhost', port='8080', user=None, password=None, path='/gui/', https=False):
-        PROTO = 'https://' if https else 'http://'
-        base_url = PROTO + address + ':' + port
-        self.url = base_url + path
-        if user:
+    def __init__(self, baseurl):
+        self.baseurl = baseurl
+        self.token = None
+        if baseurl.url.username:
             password_manager = urllib2.HTTPPasswordMgrWithDefaultRealm()
-            password_manager.add_password(realm=None, uri=self.url, user=user, passwd=password)
+            password_manager.add_password(realm=None, uri=baseurl.getBaseUrl(), user=baseurl.url.username, passwd=baseurl.url.password)
             self.MyCookies = cookielib.LWPCookieJar()
-            if os.path.isfile(COOKIEFILE) : self.MyCookies.load(COOKIEFILE)
+            if os.path.isfile(COOKIEFILE):
+                self.MyCookies.load(COOKIEFILE)
             opener = urllib2.build_opener(
                 urllib2.HTTPCookieProcessor(self.MyCookies)
                 , urllib2.HTTPBasicAuthHandler(password_manager)
                 , urllib2.HTTPDigestAuthHandler(password_manager)
-                )
+            )
             opener.addheaders = [('User-Agent', 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1) chromeframe/4.0')]
             urllib2.install_opener(opener)
 
-    def HttpCmd(self, urldta, postdta=None, content=None):
-        xbmc.log( "%s::HttpCmd - url: %s" % ( __addonname__, urldta ), xbmc.LOGDEBUG )
+
+    def CmdGetToken(self):
+        data = self.HttpCmd('token.html')
+        return data
+
+    def HttpCmd(self, path, postdta=None, content=None):
+        url = self.baseurl.getBaseUrl()
+        url = urlparse.urljoin(url, path)
+
+        xbmc.log( "%s::HttpCmd - url: %s" % ( __addonname__, url ), xbmc.LOGDEBUG )
         ## Standard code
 
-        req = urllib2.Request(urldta,postdta)
+        req = urllib2.Request(url,postdta)
 
         ## Process only if Upload..
         if content != None   :
