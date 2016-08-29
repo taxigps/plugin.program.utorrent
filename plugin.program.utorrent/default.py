@@ -152,9 +152,9 @@ def performAction(selection,sid):
     if sel == 7:
         files = getFiles(selection)
         if len(files) > 1: 
-             xbmc.Player().play(baseurl.getProxyUrl(sid, str(dialog.select(__language__(32202), files))))
+             xbmc.Player().play(baseurl.getProxyUrl(sid, str(dialog.select(__language__(32202), files))) + '|auth=any')
         else:
-             xbmc.Player().play(baseurl.getProxyUrl(sid, '0'))
+             xbmc.Player().play(baseurl.getProxyUrl(sid, '0') + '|auth=any')
     xbmc.executebuiltin('Container.Refresh')
 
 def pauseAll():
