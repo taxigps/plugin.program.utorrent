@@ -56,66 +56,70 @@ def getToken():
     baseurl.token = token
     return token
 
+torrentList = TorList()
+
 def updateList():
     token = getToken()
+    torrentList.empty()
     data = myClient.HttpCmd(baseurl.getBaseUrl(True) + '&list=1')
-    torrentList = []
     data = unicode(data, 'utf-8', errors='ignore')
     json_response = simplejson.loads(data)
     for torrent in json_response['torrents']:
-        xbmc.log( "%s::updateList - %d: %s" % ( __addonname__, len(torrentList), str(torrent) ), xbmc.LOGDEBUG )
-        hashnum = torrent[0].encode('utf-8')
-        status = torrent[1]
-        torname = torrent[2].encode('utf-8')
-        complete = torrent[4] / 10.0
-        size = torrent[3] / (1024*1024)
-        if (size >= 1024.00):
-            size_str = str(round(size / 1024.00,2)) + "Gb"
-        else:
-            size_str = str(size) + "Mb"
-        up_rate = round(torrent[8] / 1024, 2)
-        down_rate = round(torrent[9] / 1024, 2)
-        remain = torrent[10] / 60
-        if (remain >=60):
-            remain_str = str(remain//60) + __language__(30006).encode('utf8') + str(remain%60) + __language__(30007).encode('utf8')
-        elif(remain == -1):
-            remain_str = __language__(30008).encode('utf8')
-        else:
-            remain_str = str(remain) + __language__(30007).encode('utf8')
-        try:
-            sid = torrent[22]
-        except:
-            # old utorrent version, don't support stream
-            sid = -1
-        tup = (hashnum, status, torname, complete, size_str, up_rate, down_rate, remain_str, sid)
-        torrentList.append(tup)
-    torrentList.sort(key=lambda tor : tor[2])  # sort by torrent name
-    return torrentList
+        torrentList.append(TorItem(torrent))
+    # torrentList.sort(key=lambda tor : tor.name)  # sort by torrent name
 
-def listTorrents():
-    tupList = updateList()
-    mode = 1
-    for hashnum, bw, name, complete,size_str, up_rate, down_rate,remain_str,sid in tupList:
-        if bw in (169,232,233):
-            thumb = os.path.join(__icondir__,'pause.png')
-        elif bw in (130,137,200,201):
-            thumb = os.path.join(__icondir__,'play.png')
-        elif bw in (128,136):
-            thumb = os.path.join(__icondir__,'stop.png')
-        elif bw == 200:
-            thumb = os.path.join(__icondir__,'queued.png')
-        else:
-            thumb = os.path.join(__icondir__,'unknown.png')
-        url = baseurl.getBaseUrl()
-        addDir(name+" [COLOR FFFF0000]"
-                +__language__(30001).encode('utf8')+"[/COLOR]"+str(complete)+"% [COLOR FF00FF00]"
-                +__language__(30002).encode('utf8')+"[/COLOR]"+size_str+" [COLOR FFFFFF00]"
-                +__language__(30003).encode('utf8')+"[/COLOR]"+str(down_rate)+"Kb/s [COLOR FF00FFFF]"
-                +__language__(30004).encode('utf8')+"[/COLOR]"+str(up_rate)+"Kb/s [COLOR FFFF00FF]"
-                +__language__(30005).encode('utf8')+"[/COLOR]"+remain_str,url,mode,thumb,hashnum,sid)
-        mode = mode + 1
+
+def listLabels():
+    """
+    List torrent labels
+    """
+    updateList()
+    labels = torrentList.get_labels()
+    for label in labels:
+        thumb = os.path.join(__icondir__, 'label.png')
+
+        label_text = label
+        if not label:
+            label_text = '(no label)'
+        text = label_text + " [COLOR FFFF0000]" + str(labels[label]) + "[/COLOR]"
+
+        u = urllib.urlencode({
+            'mode': App.MODE_LIST,
+            'label': str(label),
+            'no_label': '1' if not label else ''
+        })
+        u = sys.argv[0] + '?' + u
+        point = xbmcgui.ListItem(text, thumbnailImage=thumb)
+        xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=u, listitem=point, isFolder=True, totalItems=labels[label])
     xbmcplugin.endOfDirectory(int(sys.argv[1]),cacheToDisc=False)
 
+
+def listTorrents():
+    """
+    List torrents, if label selected, then list torrents in label
+    """
+    updateList()
+
+    selected_label = app.get_param('label')
+    if app.get_param('no_label'):
+        selected_label = ''
+    labels = torrentList.get_labels()
+
+    # list labels if label not selected and we have labels (ome then one empty one)
+    if selected_label == None and len(labels.keys()) > 1:
+        listLabels()
+        return
+
+    # label does not exist or does not have any torrents anymore
+    if selected_label and (selected_label not in labels.keys() or not labels[selected_label]):
+        listLabels()
+        return
+
+    for tor in torrentList.items:
+        if selected_label != tor.label:
+            continue
+        addDir(tor, selected_label)
+    xbmcplugin.endOfDirectory(int(sys.argv[1]), cacheToDisc=False)
 
 def getFiles(hash):
     token = getToken()
@@ -160,34 +164,34 @@ def performAction(selection,sid):
     xbmc.executebuiltin('Container.Refresh')
 
 def pauseAll():
-    tupList = updateList()
-    for hashnum, bw, name, complete,size_str, up_rate, down_rate,remain_str,sid in tupList:
+    updateList()
+    for tor in torrentList.items:
         token = getToken()
-        myClient.HttpCmd(baseurl.getActionUrl('pause', hashnum))
+        myClient.HttpCmd(baseurl.getActionUrl('pause', tor.hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
 
 def resumeAll():
-    tupList = updateList()
-    for hashnum, bw, name, complete,size_str, up_rate, down_rate,remain_str,sid in tupList:
+    updateList()
+    for tor in torrentList.items:
         token = getToken()
-        myClient.HttpCmd(baseurl.getActionUrl('unpause', hashnum))
+        myClient.HttpCmd(baseurl.getActionUrl('unpause', tor.hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
 
 def stopAll():
-    tupList = updateList()
-    for hashnum, bw, name, complete,size_str, up_rate, down_rate,remain_str,sid in tupList:
+    updateList()
+    for tor in torrentList.items:
         token = getToken()
-        myClient.HttpCmd(baseurl.getActionUrl('stop', hashnum))
+        myClient.HttpCmd(baseurl.getActionUrl('stop', tor.hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
 
 def startAll():
-    tupList = updateList()
-    for hashnum, bw, name, complete,size_str, up_rate, down_rate,remain_str,sid in tupList:
+    updateList()
+    for tor in torrentList.items:
         token = getToken()
-        myClient.HttpCmd(baseurl.getActionUrl('start', hashnum))
+        myClient.HttpCmd(baseurl.getActionUrl('start', tor.hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
 
@@ -229,20 +233,55 @@ def addFiles():
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
 
-def addDir(name,url,mode,iconimage,hashNum,sid):
+
+def getThumbByStatus(status):
+    thumb = os.path.join(__icondir__, 'unknown.png')
+    if status in (169, 232, 233):
+        thumb = os.path.join(__icondir__, 'pause.png')
+    elif status in (130, 137, 200, 201):
+        thumb = os.path.join(__icondir__, 'play.png')
+    elif status in (128, 136):
+        thumb = os.path.join(__icondir__, 'stop.png')
+    elif status == 200:
+        thumb = os.path.join(__icondir__, 'queued.png')
+    return thumb
+
+
+def addDir(tor, selected_label):
+    thumb = getThumbByStatus(tor.status)
+
+    label = tor.name+" [COLOR FFFF0000]" \
+         + __language__(30001).encode('utf8')+"[/COLOR]"+str(tor.complete)+"% [COLOR FF00FF00]" \
+         + __language__(30002).encode('utf8')+"[/COLOR]"+tor.size_str+" [COLOR FFFFFF00]" \
+         + __language__(30003).encode('utf8')+"[/COLOR]"+str(tor.down_rate)+"Kb/s [COLOR FF00FFFF]" \
+         + __language__(30004).encode('utf8')+"[/COLOR]"+str(tor.up_rate)+"Kb/s [COLOR FFFF00FF]" \
+         + __language__(30005).encode('utf8')+"[/COLOR]"+tor.remain_str
+
     u = urllib.urlencode({
-        'url': url,
-        'mode': mode,
-        'name': name,
-        'hashNum': hashNum,
-        'sid': sid
+        'mode': App.MODE_ACTION_MENU,
+        'name': tor.name,
+        'hashNum': tor.hashnum,
+        'sid': tor.stream_id
     })
     u = sys.argv[0] + '?' + u
-    point = xbmcgui.ListItem(name,thumbnailImage=iconimage)
-    rp = "XBMC.RunPlugin(%s?mode=%s)"
-    point.addContextMenuItems([(__language__(32011), rp % (sys.argv[0], App.MODE_PAUSE_ALL)),(__language__(32012), rp % (sys.argv[0], App.MODE_RESUME_ALL)),(__language__(32013), rp % (sys.argv[0], App.MODE_STOP_ALL)),(__language__(32014), rp % (sys.argv[0], App.MODE_START)),(__language__(32015), rp % (sys.argv[0], App.MODE_LIMIT_SPEED)),(__language__(32016), rp % (sys.argv[0], App.MODE_ADD_FILES))],replaceItems=True)
-    ok = xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=point,isFolder=False)
+    point = xbmcgui.ListItem(label,thumbnailImage=thumb)
 
+    def action(mode):
+        return "XBMC.RunPlugin(" + sys.argv[0] + "?" + urllib.urlencode({
+            'mode': mode,
+            'label': str(selected_label),
+            'no_label': '1' if selected_label == '' else ''
+        }) + ")"
+
+    point.addContextMenuItems([
+        (__language__(32011), action(App.MODE_PAUSE_ALL)),
+        (__language__(32012), action(App.MODE_RESUME_ALL)),
+        (__language__(32013), action(App.MODE_STOP_ALL)),
+        (__language__(32014), action(App.MODE_START)),
+        (__language__(32015), action(App.MODE_LIMIT_SPEED)),
+        (__language__(32016), action(App.MODE_ADD_FILES))
+    ], replaceItems=True)
+    xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=u, listitem=point, isFolder=False)
 
 url = app.get_param('url')
 name = app.get_param('name')

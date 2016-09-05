@@ -19,6 +19,61 @@ def _create_base_paths():
 _create_base_paths()
 
 
+class TorItem:
+    def __init__(self, torrent):
+        self.hashnum = torrent[0].encode('utf-8')
+        self.status = torrent[1]
+        self.name = torrent[2].encode('utf-8')
+        self.size = torrent[3] / (1024*1024)
+        self.complete = torrent[4] / 10.0
+        if self.size >= 1024.0:
+            size_str = str(round(self.size / 1024.0, 2)) + "Gb"
+        else:
+            size_str = str(self.size) + "Mb"
+        self.size_str = size_str
+        # 5
+        # 6
+        # 7
+        self.up_rate = round(torrent[8] / 1024, 2)
+        self.down_rate = round(torrent[9] / 1024, 2)
+        self.remain = torrent[10] / 60
+        self.label = torrent[11]
+        if self.remain >= 60:
+            self.remain_str = str(self.remain//60) + __language__(30006).encode('utf8') + str(self.remain%60) + __language__(30007).encode('utf8')
+        elif self.remain == -1:
+            self.remain_str = __language__(30008).encode('utf8')
+        else:
+            self.remain_str = str(self.remain) + __language__(30007).encode('utf8')
+        try:
+            self.stream_id = torrent[22]
+        except:
+            # old utorrent version, don't support stream
+            self.stream_id = -1
+        #tup = (hashnum, status, torname, complete, size_str, up_rate, down_rate, remain_str, sid)
+
+
+class TorList:
+    def __init__(self):
+        self.items = []
+
+    def __len__(self):
+        return len(self.items)
+
+    def append(self, item):
+        self.items.append(item)
+
+    def empty(self):
+        del self.items[:]
+
+    def get_labels(self):
+        labels = {}
+        for i in self.items:
+            if i.label not in labels:
+                labels[i.label] = 0
+            labels[i.label] += 1
+        return labels
+
+
 class App:
     # constants
     MODE_LIST = 'list'
