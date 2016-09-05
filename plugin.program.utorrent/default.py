@@ -164,32 +164,32 @@ def performAction(selection,sid):
 
 def pauseAll():
     updateList()
+    token = getToken()
     for tor in torrentList.items:
-        token = getToken()
         myClient.HttpCmd(baseurl.getActionUrl('pause', tor.hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
 
 def resumeAll():
     updateList()
+    token = getToken()
     for tor in torrentList.items:
-        token = getToken()
         myClient.HttpCmd(baseurl.getActionUrl('unpause', tor.hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
 
 def stopAll():
     updateList()
+    token = getToken()
     for tor in torrentList.items:
-        token = getToken()
         myClient.HttpCmd(baseurl.getActionUrl('stop', tor.hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
 
 def startAll():
     updateList()
+    token = getToken()
     for tor in torrentList.items:
-        token = getToken()
         myClient.HttpCmd(baseurl.getActionUrl('start', tor.hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
