@@ -165,7 +165,12 @@ def performAction(selection,sid):
 def pauseAll():
     updateList()
     token = getToken()
+    selected_label = app.get_param('label')
+    if app.get_param('no_label'):
+        selected_label = ''
     for tor in torrentList.items:
+        if selected_label != tor.label:
+            continue
         myClient.HttpCmd(baseurl.getActionUrl('pause', tor.hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
@@ -173,7 +178,12 @@ def pauseAll():
 def resumeAll():
     updateList()
     token = getToken()
+    selected_label = app.get_param('label')
+    if app.get_param('no_label'):
+        selected_label = ''
     for tor in torrentList.items:
+        if selected_label != tor.label:
+            continue
         myClient.HttpCmd(baseurl.getActionUrl('unpause', tor.hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
@@ -181,7 +191,12 @@ def resumeAll():
 def stopAll():
     updateList()
     token = getToken()
+    selected_label = app.get_param('label')
+    if app.get_param('no_label'):
+        selected_label = ''
     for tor in torrentList.items:
+        if selected_label != tor.label:
+            continue
         myClient.HttpCmd(baseurl.getActionUrl('stop', tor.hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
@@ -189,7 +204,12 @@ def stopAll():
 def startAll():
     updateList()
     token = getToken()
+    selected_label = app.get_param('label')
+    if app.get_param('no_label'):
+        selected_label = ''
     for tor in torrentList.items:
+        if selected_label != tor.label:
+            continue
         myClient.HttpCmd(baseurl.getActionUrl('start', tor.hashnum))
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
