@@ -18,6 +18,42 @@ def _create_base_paths():
         os.makedirs( BASE_DATA_PATH )
 _create_base_paths()
 
+
+class App:
+    # constants
+    MODE_LIST = 'list'
+    MODE_PAUSE_ALL = 'pause_all'
+    MODE_RESUME_ALL = 'resume_all'
+    MODE_STOP_ALL = 'stop_all'
+    MODE_START = 'start_all'
+    MODE_LIMIT_SPEED = 'limit_speed'
+    MODE_ADD_FILES = 'add_files'
+    MODE_ACTION_MENU = 'action_menu'
+
+    def __init__(self):
+        url = urlparse.urlsplit(sys.argv[0] + sys.argv[2])
+        self.params = dict(urlparse.parse_qs(url.query))
+
+    def modes(self):
+        params = App.__dict__.keys()
+        data = []
+        for i in params:
+            if i[:5] != 'MODE_':
+                continue
+            data.append(App.__dict__[i])
+        return data
+
+    def get_param(self, name, default=None):
+        if name in self.params:
+            return self.params[name][0]
+        return default
+
+    def get_mode(self):
+        if 'mode' in self.params and self.params['mode'][0] in self.modes():
+            return self.params['mode'][0]
+        return None
+
+
 class Url(object):
     def __init__(self, address=None, port=8080, user=None, password=None, path='/gui/', https=False):
         url = '{proto}://{username}:{password}@{hostname}:{port}/{path}/'.format(

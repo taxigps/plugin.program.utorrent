@@ -27,6 +27,8 @@ if UT_PATH != __addon__.getSetting('path'):
 
 from utilities import *
 
+app = App()
+
 params = {
     'address': UT_ADDRESS,
     'port': UT_PORT,
@@ -227,81 +229,42 @@ def addFiles():
     time.sleep(1)
     xbmc.executebuiltin('Container.Refresh')
 
-def get_params():
-    param=[]
-    paramstring=sys.argv[2]
-    if len(paramstring)>=2:
-            params=sys.argv[2]
-            cleanedparams=params.replace('?','')
-            if (params[len(params)-1]=='/'):
-                    params=params[0:len(params)-2]
-            pairsofparams=cleanedparams.split('&')
-            param={}
-            for i in range(len(pairsofparams)):
-                    splitparams={}
-                    splitparams=pairsofparams[i].split('=')
-                    if (len(splitparams))==2:
-                            param[splitparams[0]]=splitparams[1]
-
-    return param
-
 def addDir(name,url,mode,iconimage,hashNum,sid):
-    u = sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+str(mode)+"&name="+urllib.quote_plus(name)+"&hashNum="+str(hashNum)+"&sid="+str(sid)
-    ok = True
+    u = urllib.urlencode({
+        'url': url,
+        'mode': mode,
+        'name': name,
+        'hashNum': hashNum,
+        'sid': sid
+    })
+    u = sys.argv[0] + '?' + u
     point = xbmcgui.ListItem(name,thumbnailImage=iconimage)
     rp = "XBMC.RunPlugin(%s?mode=%s)"
-    point.addContextMenuItems([(__language__(32011), rp % (sys.argv[0], 1000)),(__language__(32012), rp % (sys.argv[0], 1001)),(__language__(32013), rp % (sys.argv[0], 1002)),(__language__(32014), rp % (sys.argv[0], 1003)),(__language__(32015), rp % (sys.argv[0], 1004)),(__language__(32016), rp % (sys.argv[0], 1005))],replaceItems=True)
+    point.addContextMenuItems([(__language__(32011), rp % (sys.argv[0], App.MODE_PAUSE_ALL)),(__language__(32012), rp % (sys.argv[0], App.MODE_RESUME_ALL)),(__language__(32013), rp % (sys.argv[0], App.MODE_STOP_ALL)),(__language__(32014), rp % (sys.argv[0], App.MODE_START)),(__language__(32015), rp % (sys.argv[0], App.MODE_LIMIT_SPEED)),(__language__(32016), rp % (sys.argv[0], App.MODE_ADD_FILES))],replaceItems=True)
     ok = xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=point,isFolder=False)
 
-params = get_params()
-url = None
-name = None
-mode = 0
-hashNum = None
-sid = None
 
-try:
-    url = urllib.unquote_plus(params['url'])
-except:
-    pass
-try:
-    name = urllib.unquote_plus(params['name'])
-except:
-    pass
-try:
-    mode = int(params['mode'])
-except:
-    pass
-try:
-    hashNum = urllib.unquote_plus(params['hashNum'])
-except:
-    pass
-try:
-    sid = urllib.unquote_plus(params['sid'])
-except:
-    pass
+url = app.get_param('url')
+name = app.get_param('name')
+mode = app.get_mode()
 
-if mode == 0:
+if mode == App.MODE_LIST:
     listTorrents()
-
-elif mode == 1000:
+elif mode == App.MODE_PAUSE_ALL:
     pauseAll()
-
-elif mode == 1001:
+elif mode == App.MODE_RESUME_ALL:
     resumeAll()
-
-elif mode == 1002:
+elif mode == App.MODE_STOP_ALL:
     stopAll()
-
-elif mode == 1003:
+elif mode == App.MODE_START:
     startAll()
-
-elif mode == 1004:
+elif mode == App.MODE_LIMIT_SPEED:
     limitSpeeds()
-
-elif mode == 1005:
+elif mode == App.MODE_ADD_FILES:
     addFiles()
-
-elif 0 < mode < 1000:
-    xbmc.log( "%s::main - hashNum: %s" % ( __addonname__, hashNum ), xbmc.LOGDEBUG )
+elif mode == App.MODE_ACTION_MENU:
+    hashNum = app.get_param('hashNum')
+    sid = app.get_param('sid')
     performAction(hashNum,sid)
+else:
+    listTorrents()
