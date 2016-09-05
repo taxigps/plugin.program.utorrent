@@ -115,7 +115,7 @@ def listTorrents():
         return
 
     for tor in torrentList.items:
-        if selected_label != tor.label:
+        if selected_label != None and selected_label != tor.label:
             continue
         addDir(tor, selected_label)
     xbmcplugin.endOfDirectory(int(sys.argv[1]), cacheToDisc=False)
