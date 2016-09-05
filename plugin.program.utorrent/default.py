@@ -66,7 +66,6 @@ def updateList():
     json_response = simplejson.loads(data)
     for torrent in json_response['torrents']:
         torrentList.append(TorItem(torrent))
-    # torrentList.sort(key=lambda tor : tor.name)  # sort by torrent name
 
 
 def listLabels():
@@ -281,6 +280,7 @@ def addDir(tor, selected_label):
         (__language__(32015), action(App.MODE_LIMIT_SPEED)),
         (__language__(32016), action(App.MODE_ADD_FILES))
     ], replaceItems=True)
+    xbmcplugin.addSortMethod(handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_LABEL)
     xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=u, listitem=point, isFolder=False)
 
 url = app.get_param('url')
