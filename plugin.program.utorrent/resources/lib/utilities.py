@@ -86,8 +86,10 @@ class App:
     MODE_ACTION_MENU = 'action_menu'
 
     def __init__(self):
-        url = urlparse.urlsplit(sys.argv[0] + sys.argv[2])
-        self.params = dict(urlparse.parse_qs(url.query))
+        query = ''
+        if sys.argv[2]:
+            query = sys.argv[2][1:]
+        self.params = dict(urlparse.parse_qs(query))
 
     def modes(self):
         params = App.__dict__.keys()
